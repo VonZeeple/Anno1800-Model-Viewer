@@ -77,13 +77,13 @@ class Renderer:
             self.textures[k] = tex_id
 
     def render_asset(self, asset):
-        for m in asset.get_models():
-            model_name = m.get_filename()
-            transformer = m.get_transformer()
+        for m in asset.models:
+            model_name = m.filename
+            transformer = m.transformers[0]
             if transformer:
-                pos = transformer.get_pos()
-                rot = transformer.get_rot()
-                scale = transformer.get_scale()
+                pos = transformer.position
+                rot = transformer.rotation
+                scale = transformer.scale
             else:
                 pos = (0, 0, 0)
                 rot = (0, 0, 0, 0)
@@ -92,30 +92,25 @@ class Renderer:
             glTranslatef(*pos)
             glScalef(scale, scale, scale)
             glRotatef(*rot)
-            self.render_model(self.asset_manager.meshes[model_name], materials=m.get_materials())
+            self.render_model(self.asset_manager.meshes[model_name], materials=m.materials)
             glPopMatrix()
         # Render the decal
         glColor3f(1.0, 1.0, 1.0)
-        for decal in asset.get_decals():
+        for decal in asset.decals:
             if not decal.is_terrain():
                 continue
             extent = decal.get_extents()
-            transformer = decal.get_transformer()
-            if transformer:
-                pos = transformer.get_pos()
-                rot = transformer.get_rot()
-                scale = transformer.get_scale()
-            else:
-                pos = (0, 0, 0)
-                rot = (0, 0, 0, 0)
-                scale = 1
+
+            pos = (0, 0, 0)
+            rot = (0, 0, 0, 0)
+            scale = 1
             glPushMatrix()
             glTranslatef(-extent[0], 0, -extent[2])
             glScalef(scale, scale, scale)
             glTranslatef(*pos)
             glRotatef(rot[0]*90, rot[1]*90, rot[2]*90, rot[3]*90)
             decal_mesh = Mesh.gen_square(extent[0]*2, extent[2]*2)
-            decal_materials = {'decal': list(decal.get_materials().values())[0]}
+            decal_materials = {'decal': list(decal.materials.values())[0]}
             self.render_model(decal_mesh, materials=decal_materials)
             glPopMatrix()
 

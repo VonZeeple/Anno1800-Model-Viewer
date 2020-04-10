@@ -60,7 +60,7 @@ class AssetManager:
             print("File not accessible")
             return None
         except Exception as e:
-            print(e.with_traceback())
+            print(e)
         else:
             print("File loaded and parsed")
             return data

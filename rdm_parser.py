@@ -87,7 +87,7 @@ def parse_mesh_header(data, mesh_offsets):
 
     # I dont know what this is for
     offset_2, = unpack_int_array(data, mesh_offset_2)
-    data_dict['unknown_data'] = [unpack_int_array(data, i) for i in offset_2 if i != 0]
+    #data_dict['unknown_data'] = [unpack_int_array(data, i) for i in offset_2 if i != 0]
 
     # vertex groups
     groups_indices = unpack_int_array(data, groups_offset)
