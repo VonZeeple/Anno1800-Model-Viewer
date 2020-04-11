@@ -1,15 +1,20 @@
 from dataclasses import dataclass
-import xml.etree.ElementTree as eTree
+#import xml.etree.ElementTree as eTree
+from lxml  import etree
+
+def parse_color(data, name, n=3, axes=('r', 'g', 'b', 'a')):
+    return parse_vector(data, name, n=n, axes=axes)
 
 
-def parse_color(data, name, n=3):
-    axes = ('r', 'g', 'b', 'a')
-    return tuple(float(data.find(name + '.' + axes[i]).text) for i in range(n))
-
-
-def parse_vector(data, name, n=3):
-    axes = ('x', 'y', 'z', 'w')
-    return tuple(float(data.find(name + '.' + axes[i]).text) for i in range(n))
+def parse_vector(data, name, n=3, axes=('x', 'y', 'z', 'w')):
+    vector = []
+    for i in range(n):
+        element = data.find(name + '.' + axes[i])
+        if element is None:
+            return None
+        else:
+            vector.append(float(element.text))
+    return tuple(vector)
 
 
 @dataclass
@@ -18,7 +23,6 @@ class Asset:
 
     config_type = 'MAIN'
 
-    data: eTree.ElementTree = None
     render_property_flag: int = 134348928
     center: tuple = (0, 0, 0)
     extent: tuple = (0, 0, 0)
@@ -28,45 +32,67 @@ class Asset:
     mesh_center: tuple = (0, 0, 0)
     mesh_extent: tuple = (0, 0, 0)
     mesh_radius: float = 0
+
     models: tuple = ()
     decals: tuple = ()
+    files: tuple = ()
+    lights: tuple = ()
+    prop_containers: tuple = ()
 
     @staticmethod
     def from_tree(root):
         asset = Asset()
-        asset.data = root
-        asset.parse_header()
-        asset.parse_models()
-        asset.parse_decal()
+        asset.parse_header(root)
+        asset.parse_models(root)
+        asset.parse_decal(root)
+        asset.parse_files(root)
+        asset.parse_lights(root)
+        asset.parse_props(root)
         return asset
 
-    def parse_header(self):
-        self.render_property_flag = int(self.data.find('RenderPropertyFlags').text)
-        self.center = parse_vector(self.data, 'Center')
-        self.extent = parse_vector(self.data, 'Extent')
-        self.radius = float(self.data.find('Radius').text)
-        self.mass = float(self.data.find('Mass').text)
-        self.drag = float(self.data.find('Drag').text)
-        self.mesh_center = parse_vector(self.data, 'MeshCenter')
-        self.mesh_center = parse_vector(self.data, 'MeshExtent')
-        self.mesh_radius = float(self.data.find('MeshRadius').text)
+    def parse_header(self, data):
+        self.render_property_flag = int(data.find('RenderPropertyFlags').text)
+        self.center = parse_vector(data, 'Center')
+        self.extent = parse_vector(data, 'Extent')
+        self.radius = float(data.find('Radius').text)
+        self.mass = float(data.find('Mass').text)
+        self.drag = float(data.find('Drag').text)
+        self.mesh_center = parse_vector(data, 'MeshCenter')
+        self.mesh_center = parse_vector(data, 'MeshExtent')
+        self.mesh_radius = float(data.find('MeshRadius').text)
 
-    def parse_models(self):
-        models = self.data.findall('Models/Config')
+    def parse_files(self, data):
+        files = data.findall('Files/Config')
+        self.files = tuple(FileCFG.from_tree(f) for f in files)
+
+    def parse_props(self, data):
+        props = data.findall('PropContainers/Config')
+        self.prop_containers = tuple(PropContainer.from_tree(p) for p in props)
+
+    def parse_lights(self, data):
+        lights = data.findall('Lights/Config')
+        self.lights = tuple(Light.from_tree(f) for f in lights)
+
+    def parse_models(self, data):
+        models = data.findall('Models/Config')
         self.models = tuple(Model3D.from_tree(t) for t in models)
 
-    def parse_decal(self):
-        decals = self.data.findall('Decals/Config')
+    def parse_decal(self, data):
+        decals = data.findall('Decals/Config')
         self.decals = tuple(Decal.from_tree(t) for t in decals)
 
+    def get_props(self):
+        props = []
+        for pc in self.prop_containers:
+            for p in pc.props:
+                props.append(p)
+        return props
+
     def get_meshes_to_load(self):
-        return [model.filename for model in self.models]
+        return self.models
 
     def get_textures_to_load(self):
-        norm_tex = []
-        diff_tex = [el.text for el in self.data.findall('.//cModelDiffTex')]
-        metal_tex = []
-        return list(set(norm_tex + diff_tex + metal_tex))
+        return []
 
 
 @dataclass
@@ -103,6 +129,19 @@ class Material:
 
 @dataclass()
 class Transformer:
+    @staticmethod
+    def from_tree(tree):
+        config_type = tree.find('ConfigType').text
+        if config_type == 'ORIENTATION_TRANSFORM':
+            return TransformerOrientation.from_tree(tree)
+        elif config_type == 'OBJECTLINK_TRANSFORM':
+            return TransformerObjectLink.from_tree(tree)
+        else:
+            return None
+
+
+@dataclass()
+class TransformerOrientation:
     config_type = 'ORIENTATION_TRANSFORM'
     conditions: int
     position: tuple
@@ -111,7 +150,7 @@ class Transformer:
 
     @staticmethod
     def from_tree(tree):
-        transformer = Transformer(**{
+        transformer = TransformerOrientation(**{
             'conditions': int(tree.find('Conditions').text),
             'position': parse_vector(tree, 'Position'),
             'rotation': parse_vector(tree, 'Rotation', n=4),
@@ -121,17 +160,80 @@ class Transformer:
         return transformer
 
 
+@dataclass()
+class TransformerObjectLink:
+    config_type = 'OBJECTLINK_TRANSFORM'
+    conditions: int
+    model_id: int
+
+    @staticmethod
+    def from_tree(tree):
+        transformer = TransformerObjectLink(**{
+            'conditions': int(tree.find('Conditions').text),
+            'model_id': int(tree.find('ModelID').text)
+        })
+        return transformer
+
+
 @dataclass
 class FileCFG:
     config_type = 'FILE'
-    transformer: Transformer
+    transformers: tuple
     adapt_terrain_height: int
+    filename: str
     name: str
+
+    @staticmethod
+    def from_tree(tree):
+        transformers = tuple(Transformer.from_tree(t) for t in tree.findall('Transformer/Config'))
+        return FileCFG(**{
+            'transformers': transformers,
+            'adapt_terrain_height': int(tree.find('AdaptTerrainHeight').text),
+            'name': tree.find('Name').text,
+            'filename': tree.find('FileName').text
+        })
+
+
+@dataclass()
+class Prop:
+    config_type = 'PROP'
+    filename: str
+    position: tuple
+    rotation: tuple
+    scale: tuple
+    flags: int
+
+    @staticmethod
+    def from_tree(tree):
+        return Prop(**{
+            'filename': tree.find('FileName').text,
+            'position': parse_vector(tree, 'Position'),
+            'rotation': parse_vector(tree, 'Rotation', n=4),
+            'scale': parse_vector(tree, 'Scale'),
+            'flags': int(tree.find('Flags').text)
+        })
 
 
 @dataclass
 class PropContainer:
-    pass
+    config_type = 'PROPCONTAINER'
+    transformers: tuple
+    name: str
+    variation_enabled: int
+    variation_probability: int
+    props: tuple
+
+    @staticmethod
+    def from_tree(tree):
+        transformers = tuple(Transformer.from_tree(t) for t in tree.findall('Transformer/Config'))
+        props = tuple(Prop.from_tree(t) for t in tree.findall('Props/Config'))
+        return PropContainer(**{
+            'transformers': transformers,
+            'name': tree.find('Name').text,
+            'variation_enabled': int(tree.find('VariationEnabled').text),
+            'variation_probability': int(tree.find('VariationProbability').text),
+            'props': props
+        })
 
 
 @dataclass
@@ -145,8 +247,14 @@ class Sequences:
 
 
 @dataclass
-class Lights:
-    pass
+class Light:
+    config_type = 'LIGHT'
+    transformers: tuple
+    type: int
+
+    @staticmethod
+    def from_tree(tree):
+        return None
 
 
 @dataclass
@@ -176,6 +284,7 @@ class Model3D:
 class Decal:
     config_type = 'DECAL'
     materials: tuple
+    transformers: tuple
     type: str
     name: str
     extents: tuple
@@ -186,8 +295,10 @@ class Decal:
     @staticmethod
     def from_tree(tree):
         materials = tuple(Material.from_tree(t) for t in tree.findall('Materials/Config'))
+        transformer = tuple(Transformer.from_tree(t) for t in tree.findall('Transformer/Config'))
         decal = Decal(**{
             'materials': materials,
+            'transformers': transformer,
             'type': tree.find('Type').text,
             'name': tree.find('Name').text,
             'extents': parse_vector(tree, 'Extents'),
@@ -200,3 +311,21 @@ class Decal:
 
     def get_extents(self):
         return self.extents
+
+
+@dataclass()
+class PRP:
+    type_file = 'SimplePBR'
+    vertex_format: str
+    mesh_filename: str
+    diffuse_texture: str
+    # More to parse
+    @staticmethod
+    def from_tree(tree):
+        diff_texture = tree.find('cModelDiffTex')
+        diff_texture_name = diff_texture.text if diff_texture else None
+        return PRP(**{
+            'vertex_format': tree.find('VertexFormat').text,
+            'mesh_filename': tree.find('MeshFileName').text,
+            'diffuse_texture': diff_texture_name
+        })

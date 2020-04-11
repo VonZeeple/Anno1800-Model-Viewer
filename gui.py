@@ -36,7 +36,7 @@ class EventHandler:
     def on_tree_selected_file(self, event):
         filename = self.frame.get_selected_file()
         self.frame.manager.set_file_path(filename)
-        self.frame.manager.load_file()
+        self.frame.manager.load_main_file()
         print(filename)
 
     def on_pressed_load_button(self, event):
@@ -186,8 +186,8 @@ class GLPanel(wx.Panel):
     def OnDraw(self, *args, **kwargs):
         """Draw the window."""
 
-        model = self.TopLevelParent.manager.current_3Dmodel
-        asset = self.TopLevelParent.manager.current_asset
+        model = self.TopLevelParent.manager.main_rdm_model
+        asset = self.TopLevelParent.manager.main_asset
 
         self.renderer.render(model, asset)
         self.canvas.SwapBuffers()

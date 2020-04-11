@@ -2,9 +2,9 @@ from OpenGL.GL import *
 from OpenGL.GL import shaders
 from OpenGL.arrays import vbo
 from mesh import Mesh
-from asset import Asset
+from asset import Asset, TransformerOrientation
 import numpy as np
-
+import math
 
 class Renderer:
     def __init__(self, manager):
@@ -77,23 +77,29 @@ class Renderer:
             self.textures[k] = tex_id
 
     def render_asset(self, asset):
+        # Render the models:
         for m in asset.models:
             model_name = m.filename
-            transformer = m.transformers[0]
-            if transformer:
-                pos = transformer.position
-                rot = transformer.rotation
-                scale = transformer.scale
-            else:
-                pos = (0, 0, 0)
-                rot = (0, 0, 0, 0)
-                scale = 1
+
             glPushMatrix()
-            glTranslatef(*pos)
-            glScalef(scale, scale, scale)
-            glRotatef(*rot)
+            for t in m.transformers:
+                transformers = Renderer.get_chained_transformers(asset, t)
+                Renderer.apply_transformers(transformers)
             self.render_model(self.asset_manager.meshes[model_name], materials=m.materials)
             glPopMatrix()
+
+        # Render the files:
+        for f in asset.files:
+            a = self.asset_manager.sub_assets.get(f.filename, None)
+            if a:
+                self.render_asset(a)
+        # Render the props:
+        for pc in asset.prop_containers:
+            for t in pc.transformers:
+                transformers = Renderer.get_chained_transformers(asset, t)
+                Renderer.apply_transformers(transformers)
+            for p in pc.props:
+                self.render_prop(p)
         # Render the decal
         glColor3f(1.0, 1.0, 1.0)
         for decal in asset.decals:
@@ -101,18 +107,61 @@ class Renderer:
                 continue
             extent = decal.get_extents()
 
-            pos = (0, 0, 0)
-            rot = (0, 0, 0, 0)
-            scale = 1
             glPushMatrix()
             glTranslatef(-extent[0], 0, -extent[2])
-            glScalef(scale, scale, scale)
-            glTranslatef(*pos)
-            glRotatef(rot[0]*90, rot[1]*90, rot[2]*90, rot[3]*90)
+            for t in decal.transformers:
+                transformers = Renderer.get_chained_transformers(asset, t)
+                Renderer.apply_transformers(transformers)
             decal_mesh = Mesh.gen_square(extent[0]*2, extent[2]*2)
-            decal_materials = {'decal': list(decal.materials.values())[0]}
+            decal_materials = {'decal': list(decal.materials)[0]}
             self.render_model(decal_mesh, materials=decal_materials)
             glPopMatrix()
+
+    @staticmethod
+    def get_chained_transformers(asset, t):
+        transformer_list = []
+        if t is None:
+            return []
+        if t.config_type == 'ORIENTATION_TRANSFORM':
+            transformer_list += [t]
+        elif t.config_type == 'OBJECTLINK_TRANSFORM':
+            id = t.model_id
+            if len(asset.models) > id:
+                t2 = asset.models[id].transformers
+                for t3 in t2:
+                    transformer_list += Renderer.get_chained_transformers(asset, t3)
+
+        return transformer_list
+    @staticmethod
+    def apply_transformers(transformer_list):
+        for t in transformer_list:
+            if not isinstance(t, TransformerOrientation):
+                continue
+            pos = t.position
+            rot = t.rotation
+            scale = t.scale
+            glTranslatef(*pos)
+            glRotatef(*rot)
+            glScalef(*([scale]*3))
+
+    def render_prop(self, prop):
+        if prop.filename not in self.asset_manager.props.keys():
+            return
+        prp = self.asset_manager.props.get(prop.filename)
+        filename = prp.mesh_filename
+        mesh = self.asset_manager.meshes.get(filename, None)
+        if not mesh:
+            return
+        pos = prop.position
+        rot = prop.rotation
+        scale = prop.scale
+        glPushMatrix()
+        glTranslatef(*pos)
+        glRotatef(*rot)
+        glScalef(*scale)
+        self.render_model(mesh)
+        glPopMatrix()
+
 
     def render_model(self, mesh, materials=None):
         if mesh is None:
@@ -134,7 +183,7 @@ class Renderer:
         for i, group in enumerate(mesh.groups):
             group_name = str(mesh.materials[group['n']]['name'])
             if materials and (group_name in materials):
-                texture = materials[group_name].get_diff_texture()
+                texture = materials[group_name].diffuse_texture
             else:
                 texture = None
 
