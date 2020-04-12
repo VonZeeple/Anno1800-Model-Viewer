@@ -2,14 +2,27 @@ from dataclasses import dataclass
 #import xml.etree.ElementTree as eTree
 from lxml  import etree
 
-def parse_color(data, name, n=3, axes=('r', 'g', 'b', 'a')):
-    return parse_vector(data, name, n=n, axes=axes)
+def parse_color(data, tag, n=3, axes=('r', 'g', 'b', 'a')):
+    return parse_vector(data, tag, n=n, axes=axes)
 
+def parse_str(data, tag, default):
+    string = data.find('tag')
+    if string is not None:
+        return string.text
+    else:
+        return default
 
-def parse_vector(data, name, n=3, axes=('x', 'y', 'z', 'w')):
+def parse_int(data, tag, default):
+    string = data.find('tag')
+    if string is not None:
+        return int(string.text)
+    else:
+        return default
+
+def parse_vector(data, tag, n=3, axes=('x', 'y', 'z', 'w')):
     vector = []
     for i in range(n):
-        element = data.find(name + '.' + axes[i])
+        element = data.find(tag + '.' + axes[i])
         if element is None:
             return None
         else:
@@ -92,7 +105,14 @@ class Asset:
         return self.models
 
     def get_textures_to_load(self):
-        return []
+        textures = []
+        for model in self.models:
+            for material in model.materials:
+                textures.append(material.diffuse_texture)
+        for decal in self.decals:
+            for material in decal.materials:
+                textures.append(material.diffuse_texture)
+        return textures
 
 
 @dataclass
@@ -114,7 +134,7 @@ class Material:
     @staticmethod
     def from_tree(tree):
         material = Material(**{
-            'name': tree.find('Name').text,
+            'name': parse_str(tree, 'Name', None),
             'shader_id': int(tree.find('ShaderID').text),
             'vertex_format': tree.find('VertexFormat').text,
             'diffuse_enabled': int(tree.find('DIFFUSE_ENABLED').text),
@@ -318,14 +338,49 @@ class PRP:
     type_file = 'SimplePBR'
     vertex_format: str
     mesh_filename: str
-    diffuse_texture: str
+    materials: tuple
     # More to parse
     @staticmethod
     def from_tree(tree):
-        diff_texture = tree.find('cModelDiffTex')
-        diff_texture_name = diff_texture.text if diff_texture else None
+        materials = tree.findall('//Material')
+        parsed_materials = tuple(PRPMaterial.from_tree(t) for t in materials)
         return PRP(**{
             'vertex_format': tree.find('VertexFormat').text,
             'mesh_filename': tree.find('MeshFileName').text,
-            'diffuse_texture': diff_texture_name
+            'materials': parsed_materials
         })
+
+    def get_textures_to_load(self):
+        textures = []
+        for material in self.materials:
+            textures.append(material.diffuse_texture)
+        return textures
+
+@dataclass
+class PRPMaterial:
+
+    vertex_format: str = None
+    # More to parse
+    diffuse_enabled: int = 0
+    diffuse_texture: str = None
+    normal_enabled: int = 0
+    normal_texture: str = None
+    diffuse_color: tuple = (0, 0, 0)
+
+    # More to parse
+
+    @staticmethod
+    def from_tree(tree):
+        texture = tree.find('cModelDiffTex')
+        if texture is None:
+            texture = tree.find('cPropDiffuseTex')
+
+        material = Material(**{
+            'diffuse_enabled': parse_int(tree, 'DIFFUSE_ENABLED', None),
+            'diffuse_texture': texture.text,
+            'normal_enabled': parse_int(tree, 'NORMAL_ENABLED', None),
+            'normal_texture': parse_str(tree, 'cModelNormalTex', None),
+            'diffuse_color': parse_color(tree, 'cDiffuseColor')
+
+        })
+        return material

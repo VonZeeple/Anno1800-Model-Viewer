@@ -66,9 +66,39 @@ def test_asset_manager_load_asset(filename):
     r'../tests/workshop_03.cfg',
      '../tests/chair_01.prp'
 ])
-def test_prp_xml_conversion(filename):
+def test_xml_parsing(filename):
     parser = etree.XMLParser(recover=True)
     tree = etree.parse(filename, parser=parser)
     root = tree.getroot()
     assert root
+
+
+@pytest.mark.parametrize("filename, tag", [
+    ('../tests/chair_01.prp', 'Materials'),
+    ('../tests/white_wall_curved.prp', 'Material'),
+    ('../tests/chair_01.prp', 'VertexFormat'),
+    ('../tests/white_wall_curved.prp', 'VertexFormat'),
+    ('../tests/chair_01.prp', 'Type'),
+    ('../tests/white_wall_curved.prp', 'Type'),
+])
+def test_prp_first_level_tag_parsing(filename, tag):
+    parser = etree.XMLParser(recover=True)
+    tree = etree.parse(filename, parser=parser)
+    root = tree.getroot()
+    child = root.find(tag)
+    assert child is not None
+
+
+@pytest.mark.parametrize("filename, tag,texture_name", [
+    ('../tests/chair_01.prp', 'Materials/Material/cModelDiffTex', 'data/graphics/props/shared_textures/prop_atlas_4k_diff.psd'),
+    ('../tests/white_wall_curved.prp', 'Material/cModelDiffTex', 'data/graphics/props/shared_textures/prop_atlas_4k_diff.psd')
+])
+def test_prp_diff_texture_parsing(filename, tag, texture_name):
+    parser = etree.XMLParser(recover=True)
+    tree = etree.parse(filename, parser=parser)
+    root = tree.getroot()
+    child = root.find(tag)
+    assert child is not None
+    if child is not None:
+        assert child.text == texture_name
 

@@ -3,7 +3,6 @@ from PIL import Image
 from mesh import Mesh
 from asset import Asset, PRP
 import os
-#import xml.etree.ElementTree as eTree
 import lxml.etree as etree
 
 
@@ -91,6 +90,10 @@ class AssetManager:
             self.props[filename] = prop
             if prop.mesh_filename not in self.meshes.keys():
                 self.parse_rdm_file(prop.mesh_filename)
+            textures = prop.get_textures_to_load()
+            if textures:
+                for tex in textures:
+                    self.load_texture(tex)
         # Parse models and materials...
 
     # Recursive parsing
@@ -118,12 +121,13 @@ class AssetManager:
             self.parse_rdm_file(rdm.filename)
         # We now parse all textures
         for tex in asset.get_textures_to_load():
-            pass
-
-
-
+            self.load_texture(tex)
 
     def load_texture(self, filename):
+        if filename is None:
+            return
+        if filename in self.textures.keys():
+            return
         prefix, ext = os.path.splitext(filename)
         if ext == '.dds':
             tex = self.load_dds(prefix+'_0.dds')
@@ -135,7 +139,7 @@ class AssetManager:
             tex = self.load_dds(prefix+'_0.dds')
         else:
             tex = None
-            print("texture format not supported")
+            print("texture format not supported: "+filename)
         if tex:
             self.textures[filename] = tex
 

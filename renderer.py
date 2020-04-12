@@ -1,5 +1,4 @@
 from OpenGL.GL import *
-from OpenGL.GL import shaders
 from OpenGL.arrays import vbo
 from mesh import Mesh
 from asset import Asset, TransformerOrientation
@@ -40,31 +39,6 @@ class Renderer:
         glEnable(GL_COLOR_MATERIAL)
 
         self.load_textures()
-
-        # Shader program to run on CPU
-        vertexShader = shaders.compileShader("""
-        #version 330
-        layout (location=0) in vec3 position;
-        layout (location=1) in vec2 texCoords;
-        out vec2 theCoords;
-        void main()
-        {
-            gl_Position = vec4(position, 1);
-            theCoords = texCoords;
-        }
-        """, GL_VERTEX_SHADER)
-
-        fragmentShader = shaders.compileShader("""
-        #version 330
-        uniform sampler2D texUnit;
-        in vec2 theCoords;
-        out vec4 outputColour;
-        void main()
-        {
-            outputColour = texture(texUnit, theCoords);
-        }
-        """, GL_FRAGMENT_SHADER)
-        self.shaderProgram = shaders.compileProgram(vertexShader, fragmentShader)
         self.initialized = True
 
     def load_textures(self):
@@ -86,7 +60,8 @@ class Renderer:
             for t in m.transformers:
                 transformers = Renderer.get_chained_transformers(asset, t)
                 Renderer.apply_transformers(transformers)
-            self.render_model(self.asset_manager.meshes[model_name], materials=m.materials)
+            if model_name in self.asset_manager.meshes.keys():
+                self.render_model(self.asset_manager.meshes[model_name], materials=m.materials)
             glPopMatrix()
 
         # Render the files:
@@ -116,7 +91,7 @@ class Renderer:
                 transformers = Renderer.get_chained_transformers(asset, t)
                 Renderer.apply_transformers(transformers)
             decal_mesh = Mesh.gen_square(extent[0] * 2, extent[2] * 2)
-            decal_materials = {'decal': list(decal.materials)[0]}
+            decal_materials = list(decal.materials)
             self.render_model(decal_mesh, materials=decal_materials)
             glPopMatrix()
 
@@ -153,7 +128,7 @@ class Renderer:
         #Maybe check if the vector is normalized
         angle = (math.acos(vec4[3]) * 2)
         anorm = math.sqrt(vec4[0]**2 + vec4[1]**2 + vec4[2]**2)
-        if anorm != 0 :
+        if anorm != 0:
             glRotatef(math.degrees(angle), vec4[0]/anorm, vec4[1]/anorm, vec4[2]/anorm)
         else:
             glRotatef(math.degrees(angle), vec4[0], vec4[1], vec4[2])
@@ -173,13 +148,13 @@ class Renderer:
         glTranslatef(*pos)
         Renderer.apply_rotation(rot)
         glScalef(*scale)
-        self.render_model(mesh)
+        self.render_model(mesh, materials=prp.materials)
         glPopMatrix()
 
     def render_model(self, mesh, materials=None):
         if mesh is None:
             return
-        color_group = True
+        color_group = False
         colors = [(1., 1., 1.), (1., 0., 0.), (0., 1., 0.), (0., 0., 1.), (1., 0., 1.), (1., 1., 0.), (0.0, 1., 1.)]
         glColor3f(1.0, 1.0, 1.0)
         vertex_data = mesh.vertices
@@ -194,16 +169,15 @@ class Renderer:
         glEnableClientState(GL_TEXTURE_COORD_ARRAY)
 
         for i, group in enumerate(mesh.groups):
-            group_name = str(mesh.materials[group['n']]['name'])
-            if materials and (group_name in materials):
-                texture = materials[group_name].diffuse_texture
-            else:
-                texture = None
+            #We choose the correct material:
+            glBindTexture(GL_TEXTURE_2D, 0)
+            if materials:
+                if len(materials) > group.get('n'):
+                    material = list(materials)[ group.get('n')]
+                    texture_name = material.diffuse_texture
+                    if texture_name in self.textures.keys():
+                        glBindTexture(GL_TEXTURE_2D, self.textures[texture_name])
 
-            if texture and texture in self.textures:
-                glBindTexture(GL_TEXTURE_2D, self.textures[texture])
-            else:
-                glDisable(GL_TEXTURE_2D)
 
             if color_group:
                 glColor3f(*colors[group['n']])
