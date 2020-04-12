@@ -94,6 +94,7 @@ class Renderer:
             decal_materials = list(decal.materials)
             self.render_model(decal_mesh, materials=decal_materials)
             glPopMatrix()
+        # Render the lights
 
     @staticmethod
     def get_chained_transformers(asset, t):
@@ -125,11 +126,11 @@ class Renderer:
 
     @staticmethod
     def apply_rotation(vec4):
-        #Maybe check if the vector is normalized
+        # Maybe check if the vector is normalized
         angle = (math.acos(vec4[3]) * 2)
-        anorm = math.sqrt(vec4[0]**2 + vec4[1]**2 + vec4[2]**2)
+        anorm = math.sqrt(vec4[0] ** 2 + vec4[1] ** 2 + vec4[2] ** 2)
         if anorm != 0:
-            glRotatef(math.degrees(angle), vec4[0]/anorm, vec4[1]/anorm, vec4[2]/anorm)
+            glRotatef(math.degrees(angle), vec4[0] / anorm, vec4[1] / anorm, vec4[2] / anorm)
         else:
             glRotatef(math.degrees(angle), vec4[0], vec4[1], vec4[2])
 
@@ -169,15 +170,14 @@ class Renderer:
         glEnableClientState(GL_TEXTURE_COORD_ARRAY)
 
         for i, group in enumerate(mesh.groups):
-            #We choose the correct material:
+            # We choose the correct material:
             glBindTexture(GL_TEXTURE_2D, 0)
             if materials:
                 if len(materials) > group.get('n'):
-                    material = list(materials)[ group.get('n')]
+                    material = list(materials)[group.get('n')]
                     texture_name = material.diffuse_texture
                     if texture_name in self.textures.keys():
                         glBindTexture(GL_TEXTURE_2D, self.textures[texture_name])
-
 
             if color_group:
                 glColor3f(*colors[group['n']])
@@ -198,6 +198,9 @@ class Renderer:
         glClearColor(0.5, 0.7, 1, 1)
         glColor3f(1.0, 1.0, 1.0)
         glMatrixMode(GL_MODELVIEW)
+
+
+
         if isinstance(model, Mesh):
             glDisable(GL_TEXTURE_2D)
             self.render_model(model)
@@ -205,3 +208,22 @@ class Renderer:
             glEnable(GL_TEXTURE_2D)
             self.render_asset(asset)
 
+        # Render arrows
+        glDisable(GL_DEPTH_TEST)
+        glDisable(GL_LIGHTING)
+        glDisable(GL_TEXTURE_2D)
+        glBegin(GL_LINES)
+        glColor4ub(255, 0, 0, 255)
+        glVertex3f(0, 0, 0)
+        glVertex3f(1, 0, 0)
+        glColor4ub(0, 255, 0, 255)
+        glVertex3f(0, 0, 0)
+        glVertex3f(0, 1, 0)
+        glColor4ub(0, 0, 255, 255)
+        glVertex3f(0, 0, 0)
+        glVertex3f(0, 0, 1)
+        glEnd()
+
+        glEnable(GL_COLOR_MATERIAL)
+        glEnable(GL_DEPTH_TEST)
+        glEnable(GL_LIGHTING)

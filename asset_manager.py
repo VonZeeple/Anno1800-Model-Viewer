@@ -15,7 +15,7 @@ class AssetManager:
         self.data_path = 'D:\\modding\\Anno1800\\data_Anno1800\\'
         self.window = None
         self.file_path = ''
-        self.main_rdm_model = Mesh.gen_square(1, 1)
+        self.main_rdm_model = None
         self.main_asset = None
 
         # a dictionnary of all the meshes (rdm files). keys are the mesh relative path+filename

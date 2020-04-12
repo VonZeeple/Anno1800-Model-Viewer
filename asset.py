@@ -179,6 +179,10 @@ class TransformerOrientation:
 
         return transformer
 
+@dataclass()
+class TransformerDayNight:
+    config_type = 'DAYNIGHT_TRANSFORM'
+    pass
 
 @dataclass()
 class TransformerObjectLink:
@@ -271,6 +275,10 @@ class Light:
     config_type = 'LIGHT'
     transformers: tuple
     type: int
+    color: tuple #rgba floats
+    range: float
+    # More to parse
+    adapt_terrain_height: int
 
     @staticmethod
     def from_tree(tree):
