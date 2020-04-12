@@ -13,6 +13,7 @@ def open_file(file_path):
 class AssetManager:
     def __init__(self):
         self.data_path = 'D:\\modding\\Anno1800\\data_Anno1800\\'
+        self.fallback_path = 'D:\\modding\\Anno1800\\data_Anno1800\\'
         self.window = None
         self.file_path = ''
         self.main_rdm_model = None
