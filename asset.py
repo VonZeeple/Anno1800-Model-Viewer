@@ -1,9 +1,11 @@
 from dataclasses import dataclass
-#import xml.etree.ElementTree as eTree
-from lxml  import etree
+# import xml.etree.ElementTree as eTree
+from lxml import etree
+
 
 def parse_color(data, tag, n=3, axes=('r', 'g', 'b', 'a')):
     return parse_vector(data, tag, n=n, axes=axes)
+
 
 def parse_str(data, tag, default):
     string = data.find('tag')
@@ -12,12 +14,14 @@ def parse_str(data, tag, default):
     else:
         return default
 
+
 def parse_int(data, tag, default):
     string = data.find('tag')
     if string is not None:
         return int(string.text)
     else:
         return default
+
 
 def parse_vector(data, tag, n=3, axes=('x', 'y', 'z', 'w')):
     vector = []
@@ -179,10 +183,12 @@ class TransformerOrientation:
 
         return transformer
 
+
 @dataclass()
 class TransformerDayNight:
     config_type = 'DAYNIGHT_TRANSFORM'
     pass
+
 
 @dataclass()
 class TransformerObjectLink:
@@ -274,15 +280,17 @@ class Sequences:
 class Light:
     config_type = 'LIGHT'
     transformers: tuple
-    type: int
-    color: tuple #rgba floats
+    color: tuple  # rgba floats
     range: float
     # More to parse
-    adapt_terrain_height: int
 
     @staticmethod
     def from_tree(tree):
-        return None
+        transformers = tuple(Transformer.from_tree(t) for t in tree.findall('Transformer/Config'))
+        light = Light(**{"transformers": transformers,
+                         "range": float(tree.find('Range').text),
+                         "color": parse_color(tree, 'Diffuse', n=4)})
+        return light
 
 
 @dataclass
@@ -347,6 +355,7 @@ class PRP:
     vertex_format: str
     mesh_filename: str
     materials: tuple
+
     # More to parse
     @staticmethod
     def from_tree(tree):
@@ -364,9 +373,9 @@ class PRP:
             textures.append(material.diffuse_texture)
         return textures
 
+
 @dataclass
 class PRPMaterial:
-
     vertex_format: str = None
     # More to parse
     diffuse_enabled: int = 0

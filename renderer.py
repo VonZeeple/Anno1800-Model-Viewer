@@ -68,7 +68,12 @@ class Renderer:
         for f in asset.files:
             a = self.asset_manager.sub_assets.get(f.filename, None)
             if a:
+                glPushMatrix()
+                for t in f.transformers:
+                    transformers = Renderer.get_chained_transformers(asset, t)
+                    Renderer.apply_transformers(transformers)
                 self.render_asset(a)
+                glPopMatrix()
         # Render the props:
         for pc in asset.prop_containers:
             glPushMatrix()
@@ -95,6 +100,8 @@ class Renderer:
             self.render_model(decal_mesh, materials=decal_materials)
             glPopMatrix()
         # Render the lights
+        for light in asset.lights:
+            self.render_light(light, asset)
 
     @staticmethod
     def get_chained_transformers(asset, t):
@@ -152,6 +159,18 @@ class Renderer:
         self.render_model(mesh, materials=prp.materials)
         glPopMatrix()
 
+    def render_light(self, light, asset):
+        if light is None:
+            return
+
+        glPushMatrix()
+        for t in light.transformers:
+            transformers = Renderer.get_chained_transformers(asset, t)
+            Renderer.apply_transformers(transformers)
+        glScalef(light.range, light.range, light.range)
+        Renderer.draw_light_marker()
+        glPopMatrix()
+
     def render_model(self, mesh, materials=None):
         if mesh is None:
             return
@@ -189,6 +208,39 @@ class Renderer:
             glTexCoordPointer(2, GL_FLOAT, 32, vbo_data + 24 + offset * 32)
             glDrawArrays(GL_TRIANGLES, 0, int(size))
 
+    @staticmethod
+    def draw_circle(n_vertices=32):
+        glBegin(GL_LINE_LOOP)
+        for i in range(n_vertices):
+            angle = 2 * math.pi * i / n_vertices
+            glVertex3f(math.cos(angle), math.sin(angle), 0)
+        glEnd()
+
+    @staticmethod
+    def draw_light_marker():
+        rotations = [(90,1, 0, 0), (90,0, 1, 0), (90,0, 0, 1)]
+        colors = [(0, 255, 0, 255), (255, 0, 0, 255), (0, 0, 255, 255)]
+
+        # TODO: draw at the end
+        glPushAttrib(GL_ALL_ATTRIB_BITS)
+        glPushClientAttrib(GL_CLIENT_ALL_ATTRIB_BITS)
+        glDisable(GL_DEPTH_TEST)
+        glDisable(GL_LIGHTING)
+        glDisable(GL_TEXTURE_2D)
+        for rot, color in zip(rotations, colors):
+            glPushMatrix()
+            glColor4ub(*color)
+            glRotatef(*rot)
+            Renderer.draw_circle()
+
+            glBegin(GL_LINES)
+            glVertex3f(0, 0, -1)
+            glVertex3f(0, 0, 1)
+            glEnd()
+            glPopMatrix()
+        glPopAttrib()
+        glPopClientAttrib()
+
     def render(self, model, asset):
         if not self.initialized:
             self.initialize()
@@ -198,8 +250,6 @@ class Renderer:
         glClearColor(0.5, 0.7, 1, 1)
         glColor3f(1.0, 1.0, 1.0)
         glMatrixMode(GL_MODELVIEW)
-
-
 
         if isinstance(model, Mesh):
             glDisable(GL_TEXTURE_2D)
