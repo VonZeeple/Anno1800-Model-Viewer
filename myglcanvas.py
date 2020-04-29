@@ -8,8 +8,10 @@ class myGLCanvas(glcanvas.GLCanvas):
     def __init__(self, *arg, **kwargs):
         attrib_list = (glcanvas.WX_GL_RGBA, glcanvas.WX_GL_DOUBLEBUFFER, glcanvas.WX_GL_DEPTH_SIZE, 24)
         super().__init__(*arg, attribList=attrib_list, **kwargs)
-        if wx.VERSION >= (2, 9):
-            self.gl_context = glcanvas.GLContext(self)
+
+        self.gl_context = glcanvas.GLContext(self)
+
+        #self.cb = wx.CheckBox(self, label='test')
 
     def set_view(self, angle_x, angle_y, zoom, trans_x, trans_y):
         size_x, size_y = self.GetClientSize()

@@ -177,7 +177,7 @@ class Renderer:
         color_group = False
         colors = [(1., 1., 1.), (1., 0., 0.), (0., 1., 0.), (0., 0., 1.), (1., 0., 1.), (1., 1., 0.), (0.0, 1., 1.)]
         glColor3f(1.0, 1.0, 1.0)
-        vertex_data = mesh.vertices
+        vertex_data = mesh.ordered_vertices
         vertex_data = np.array(vertex_data, dtype=np.float32)
         vbo_data = vbo.VBO(np.array(vertex_data, dtype=np.float32))
         vbo_data.bind()
@@ -224,7 +224,7 @@ class Renderer:
         # TODO: draw at the end
         glPushAttrib(GL_ALL_ATTRIB_BITS)
         glPushClientAttrib(GL_CLIENT_ALL_ATTRIB_BITS)
-        glDisable(GL_DEPTH_TEST)
+        #glDisable(GL_DEPTH_TEST)
         glDisable(GL_LIGHTING)
         glDisable(GL_TEXTURE_2D)
         for rot, color in zip(rotations, colors):

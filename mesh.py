@@ -1,40 +1,52 @@
 import math
+from anno_rdm_converter import rdm as rdm_conv
 
 
 def convert_normal(norm):
     n_1 = [n * 1. / 255 * 2 - 1 for n in norm]
     length = math.sqrt(sum([n ** 2 for n in n_1]))
-    return [n/length for n in n_1]
+    return [n / length for n in n_1]
 
 
 class Mesh:
     """Contain a list of trigs """
-    def __init__(self, trigs, groups=None, materials=None):
-        self.trigs = trigs
-        self.groups = groups
-        self.materials = materials
-        self.vertices = Mesh.v_from_t(self.trigs)
 
-    @staticmethod
-    def v_from_t(trigs):
-        out = []
-        for t in trigs:
-            for v in t.vertices:
-                out += v.pos
-                out += convert_normal(v.norm)
-                out += v.tex
-        return out
+    def __init__(self, vertices, indices, groups=None):
+        self.vertices = vertices
+        self.groups = groups
+        self.indices = indices
+        self.ordered_vertices = []
+
+        #TODO, this should be done by the renderer
+        for i in self.indices:
+            vertex = self.vertices[i]
+            self.ordered_vertices += vertex.pos[0:3]
+            self.ordered_vertices += convert_normal(vertex.norm[0:3])
+            self.ordered_vertices += vertex.tex[0:2]
 
     @staticmethod
     def from_rdm(data):
-        trigs = []
-        for t in data['triangles']:
-            vertices = [Vertex(**data['vertices'][i]) for i in t]
-            trigs.append(Trig(vertices))
-        groups = data['groups']
+        meshes = data.main_record.get('mesh', [])
 
-        m = data['materials']
-        return Mesh(trigs, groups=groups, materials=m)
+        def parse_mesh(mesh):
+            indices = [rdm_conv.VertexIndex.decode(t).index for t in mesh['faces']]
+            vertices = [Vertex.from_rdm(v) for v in mesh['vertices']]
+            groups = [{'offset': g.offset, 'size': g.size, 'n': g.n} for g in mesh['groups'].values()]
+            return Mesh(vertices, indices, groups=groups)
+
+        return Mesh.merge_meshes([parse_mesh(m) for m in meshes])
+
+    @staticmethod
+    def merge_meshes(mesh_list):
+        vertices = []
+        indices = []
+        groups = []
+        for mesh in mesh_list:
+            groups += [{'offset': g['offset'] + len(indices), 'size': g['size'], 'n': g['n']} for g in mesh.groups]
+            indices += [i + len(vertices) for i in mesh.indices]
+            vertices += mesh.vertices
+        return Mesh(vertices, indices, groups=groups)
+
 
     @staticmethod
     def gen_square(size_x, size_y):
@@ -43,9 +55,10 @@ class Mesh:
         v2 = Vertex(pos=(size_x, 0, 0), norm=n, tex=(1, 1))
         v3 = Vertex(pos=(size_x, 0, size_y), norm=n, tex=(1, 0))
         v4 = Vertex(pos=(0, 0, size_y), norm=n, tex=(0, 0))
-        mesh = Mesh([Trig([v3, v2, v1]), Trig([v4, v3, v1])],
-                    groups=[{'n': 0, 'offset': 0, 'size': 6}],
-                    materials=[{'name': 'decal'}])
+        mesh = Mesh(
+            vertices=[v1, v2, v3, v4],
+            indices=[2, 1, 0, 3, 2, 0],
+            groups=[{'n': 0, 'offset': 0, 'size': 6}])
         return mesh
 
 
@@ -56,8 +69,7 @@ class Vertex:
         self.norm = kwarg.get('norm', (128, 255, 128))
         self.tex = kwarg.get('tex', (0, 0))
 
-
-# Ordered list of vertices
-class Trig:
-    def __init__(self, vertices):
-        self.vertices = vertices
+    @staticmethod
+    def from_rdm(data):
+        rdm_vertex = rdm_conv.Vertex.decode(data)
+        return Vertex(pos=rdm_vertex['pos'], norm=rdm_vertex['norm'], tex=rdm_vertex['tex'])

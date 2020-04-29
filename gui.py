@@ -2,6 +2,7 @@ import wx
 from myglcanvas import myGLCanvas
 from renderer import Renderer
 
+
 class MouseEventHandler:
     def __init__(self, frame):
         self.frame = frame
@@ -49,21 +50,24 @@ class EventHandler:
         dlg.Destroy()
 
 
-class main_window(wx.Frame):
+class MainWindow(wx.Frame):
     def __init__(self, manager, *args, **kwargs):
-        super(main_window, self).__init__(*args, **kwargs)
+        super(MainWindow, self).__init__(*args, **kwargs)
         self.manager = manager
+
+        #Splitted window
         self.splitter_window = wx.SplitterWindow(self, wx.ID_ANY, style=wx.SP_3D)
         self.tree_panel = Tree_panel(self.splitter_window, wx.ID_ANY)
         self.gl_panel = GLPanel(self.splitter_window, wx.ID_ANY)
         self.splitter_window.SplitVertically(self.tree_panel, self.gl_panel, 300)
-        self.text_ctr = wx.TextCtrl(self)
-        self.text_logger = wx.TextCtrl(self)
-        self.sizer = wx.BoxSizer(wx.VERTICAL)
-        self.sizer.Add(self.text_ctr, 0.5, wx.ALL | wx.EXPAND)
-        self.sizer.Add(self.splitter_window, 10, wx.ALL | wx.EXPAND)
-        self.sizer.Add(self.text_logger, 3, wx.ALL | wx.EXPAND)
-        self.SetSizer(self.sizer)
+
+        #self.text_ctr = wx.TextCtrl(self)
+        #self.text_logger = wx.TextCtrl(self)
+        #self.sizer = wx.BoxSizer(wx.VERTICAL)
+        #self.sizer.Add(self.text_ctr, 0.5, wx.ALL | wx.EXPAND)
+        #self.sizer.Add(self.splitter_window, 10, wx.ALL | wx.EXPAND)
+        #self.sizer.Add(self.text_logger, 3, wx.ALL | wx.EXPAND)
+        #self.SetSizer(self.sizer)
         self.event_handler = EventHandler(self)
         self.init_frame()
         self.Show()
@@ -113,9 +117,6 @@ class GLPanel(wx.Panel):
     def __init__(self, *arg, **kwargs):
         super().__init__(*arg, **kwargs)
         self.canvas = myGLCanvas(self, id=wx.ID_ANY, size=(500, 500))
-
-        #self.canvas.get_context()
-
         self.GLinitialized = False
         self.angle_x = 0
         self.angle_y = 0
@@ -123,6 +124,8 @@ class GLPanel(wx.Panel):
         self.trans_y = 0
         self.zoom = 0
         self.renderer = Renderer(self.TopLevelParent.manager)
+
+
 
         # Event handlers
         self.canvas.Bind(wx.EVT_ERASE_BACKGROUND, self.processEraseBackgroundEvent)
@@ -138,6 +141,7 @@ class GLPanel(wx.Panel):
         self.SetSizer(sizer)
         sizer.Fit(self)
         self.Layout()
+
 
     def OnDrag(self, dx, dy, strat=False):
         if strat:
@@ -191,6 +195,8 @@ class GLPanel(wx.Panel):
 
         self.renderer.render(model, asset)
         self.canvas.SwapBuffers()
+
+
 
 
 

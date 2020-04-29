@@ -102,3 +102,5 @@ def test_prp_diff_texture_parsing(filename, tag, texture_name):
     if child is not None:
         assert child.text == texture_name
 
+
+# TODO: test rotations in dlc01\graphics\buildings\3rd_party\3rd_party_06_kontor_02\3rd_party_06_kontor_02.cfg

@@ -1,10 +1,9 @@
-import rdm_parser
 from PIL import Image
 from mesh import Mesh
 from asset import Asset, PRP
 import os
 import lxml.etree as etree
-
+from anno_rdm_converter import rdm as rdm_conv
 
 def open_file(file_path):
     with open(file_path, 'rb') as f:
@@ -70,8 +69,8 @@ class AssetManager:
 
     def parse_main_rdm(self, filename):
         data = open_file(filename)
-        mesh = rdm_parser.parse_rdm(data)
-        self.main_rdm_model = Mesh.from_rdm(mesh)
+        rdm_file = rdm_conv.RDMFile.parse(data)
+        self.main_rdm_model = Mesh.from_rdm(rdm_file)
 
     def parse_main_cfg(self, filename):
         self.parse_cfg_file(filename, is_main=True)
@@ -80,8 +79,8 @@ class AssetManager:
     def parse_rdm_file(self, filename):
         if filename not in self.meshes.keys():
             data = open_file(self.data_path+filename)
-            mod = rdm_parser.parse_rdm(data)
-            self.meshes[filename] = Mesh.from_rdm(mod)
+            rdm_file = rdm_conv.RDMFile.parse(data)
+            self.meshes[filename] = Mesh.from_rdm(rdm_file)
 
     def parse_prp_file(self, filename):
         if filename not in self.props.keys():
