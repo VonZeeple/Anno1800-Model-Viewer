@@ -22,6 +22,9 @@ You will also need to resolve some depenencies by downloading following packages
 - lxml
 - numpy
 
+You also need the package for the rdm parser:
+https://github.com/VonZeeple/Anno-RDM-Converter
+
 Then using cmd, go to the folder containing main.py and run: python main.py
 ### Loading files
 - For .rdm files, simply select a rdm file using the tree on the left.
